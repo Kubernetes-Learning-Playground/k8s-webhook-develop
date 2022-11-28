@@ -20,13 +20,13 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/app/webhookPractice"]
           env: # 环境变量
-            - name: WHITELIST_REGISTRIES
+            - name: WHITELIST_REGISTRIES # 白名单列表
               value: "docker.io,gcr.io"
-            - name: BLACKLIST_REGISTRIES
+            - name: BLACKLIST_REGISTRIES # 黑名单列表
               value: ""
-            - name: WhITE_OR_BLOCK
+            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
               value: "white"
-            - name: PORT
+            - name: PORT # 端口
               value: "443"
           ports:
             - containerPort: 443
