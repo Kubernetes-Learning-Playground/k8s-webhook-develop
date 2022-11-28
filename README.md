@@ -94,15 +94,15 @@ EOF
 ```
 
 4.使用生成的 server 证书和私钥创建一个 Secret 对象
+
 ```
-```bash
 # 创建Secret
 ➜  kubectl create secret tls admission-registry-tls \
         --key=server-key.pem \
         --cert=server.pem
 secret/admission-registry-tls created
 ```
-```
+
 
 5. 启动项目
 ```
