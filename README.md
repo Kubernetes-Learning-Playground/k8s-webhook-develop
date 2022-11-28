@@ -1,6 +1,18 @@
 ## k8s api server webhook 二次开发实践
 ## k8s-webhook-develop
 
+### 项目丝路
+
+使用k8s插件的webhook功能，部署ValidatingWebhookConfiguration资源对象。
+
+同时支援白名单与黑名单校验镜像的两种方式。
+
+(在yaml/deploy.yaml的环境变量WhITE_OR_BLOCK中设置"white" or "black"。)
+
+1. 白名单：只有列表中的镜像前缀同意创建。
+
+2. 黑名单：只有列表中的镜像前缀拒绝创建。
+
 ### 项目部署步骤
 1. 进入目录
 
@@ -56,6 +68,18 @@ EOF
     ]
 }
 EOF
+
+➜  cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+2021/01/23 16:59:51 [INFO] generating a new CA key and certificate from CSR
+2021/01/23 16:59:51 [INFO] generate received request
+2021/01/23 16:59:51 [INFO] received CSR
+2021/01/23 16:59:51 [INFO] generating key: rsa-2048
+2021/01/23 16:59:51 [INFO] encoded CSR
+2021/01/23 16:59:51 [INFO] signed certificate with serial number 502715407096434913295607470541422244575186494509
+➜  ls -la *.pem
+-rw-------  1 ych  staff  1675 Jan 23 17:05 ca-key.pem
+-rw-r--r--  1 ych  staff  1310 Jan 23 17:05 ca.pem
+
 ```
 c.
 ```
