@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" id="fe0a4479-0a38-4d74-895c-6637a592abd9" customName="my-server" nameFormat="CUSTOM">
+        <option name="customName" value="my-server" />
+      </sshConfig>
+    </configs>
+  </component>
+</project>

@@ -1,0 +1,44 @@
+# validatingwebhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: admission-registry
+webhooks:
+  - name: my.practice.admission-registry
+    rules:
+      - apiGroups:   [""]
+        apiVersions: ["v1"]
+        operations:  ["CREATE"]
+        resources:   ["pods"]
+    clientConfig:
+      service:
+        namespace: default
+        name: admission-registry
+        path: "/validate"
+      caBundle: |
+        LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUR2akNDQXFhZ0F3SUJBZ0lVVHF5eDVaRDdG
+        RGYwbEdQSVk5amZxM3JJWS84d0RRWUpLb1pJaHZjTkFRRUwKQlFBd1pURUxNQWtHQTFVRUJoTUNR
+        MDR4RURBT0JnTlZCQWdUQjBKbGFVcHBibWN4RURBT0JnTlZCQWNUQjBKbAphVXBwYm1jeEREQUtC
+        Z05WQkFvVEEyczRjekVQTUEwR0ExVUVDeE1HVTNsemRHVnRNUk13RVFZRFZRUURFd3ByCmRXSmxj
+        bTVsZEdWek1CNFhEVEl5TVRFeU9ERTFNemd3TUZvWERUSTNNVEV5TnpFMU16Z3dNRm93WlRFTE1B
+        a0cKQTFVRUJoTUNRMDR4RURBT0JnTlZCQWdUQjBKbGFVcHBibWN4RURBT0JnTlZCQWNUQjBKbGFV
+        cHBibWN4RERBSwpCZ05WQkFvVEEyczRjekVQTUEwR0ExVUVDeE1HVTNsemRHVnRNUk13RVFZRFZR
+        UURFd3ByZFdKbGNtNWxkR1Z6Ck1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNn
+        S0NBUUVBeUpySkJvbThrazJPQnlNejBGM08KZEcvdFU1L1F4RENRS2JSaXk0TDFwbE41RjFKWW1G
+        RC9ackhmaWNhUEw4ZG1jSmlFL2RFdTdMOFJzR01PZmVnZgpFTlJtLzFCd3Q3d0Y2S3lMUTRueWxh
+        dEErS05pRXlJS05wUmcxVnUrQ0YwRnAzbnp0ckUvSkRVczdlN3RGR1hHCkNQLzVGWlZSNTZRVVRk
+        S09zTGtSY3ZNTENxclA1cHIyOG9MWng3UDVIQXR5MVhBU3pxRFBmRzkvREQySlFjaUIKbHdzOXc5
+        NDF4dlUzVWVxR2l6MkMzcU03bUM1ZDlsdXBwL1ZrMmtOSEQwOHdXZVpxb2d0NkhvbzgvMnorU0p2
+        MQozdW9aVlFSNnNaUVhEdC83bG9laHd1NjJIWENwV0hlTG1idGtqd1A0amtVK0c4MmNZMkgwV1Nq
+        RnJDdjRWODFBCm1RSURBUUFCbzJZd1pEQU9CZ05WSFE4QkFmOEVCQU1DQVFZd0VnWURWUjBUQVFI
+        L0JBZ3dCZ0VCL3dJQkFqQWQKQmdOVkhRNEVGZ1FVb1BqbVRHbUVpL2VjeWhpN0diMmpjZHdDQWo4
+        d0h3WURWUjBqQkJnd0ZvQVVvUGptVEdtRQppL2VjeWhpN0diMmpjZHdDQWo4d0RRWUpLb1pJaHZj
+        TkFRRUxCUUFEZ2dFQkFLRW1Ud0RrbC9UbUo2ZUg0N2FxCktiU1FWRGtGbXVleXRTVE0wdXdOeG9k
+        V1NMc0ZFbnZIOHk1VmJXNWxiRGpFN1BjS1dSVkl2d3c2UWJTQWFnU2cKYnUzUFhxTnVSZXlTSzha
+        dng3V0FqSVREOXdVSDc3OTRJa2liVVNyTEpFZFlNT1pDd25GRXlRYlBvNk9zeUJGTApscjhxdzdH
+        M3JFUHBKZ1F4SVJJTXpwWDY2aGZkUldDZkpLa2ZiYzZML1M1KzNNRlhqUFpqMjZzREowQzFRZEs3
+        CktxTzRTWTRTZDkvZER4dU5HbW0xdUVtWXdvbml5dllRcnFTQkMrajBIcnk4Z0grekN1NmwzQUcr
+        OCtrMkd3cnEKbmhPYTdkcDRvN0MzUXlvOHhhQlJnbUJIYnJ4ZGIyNWZ1OEgxU3FzbFFGT05KNU14
+        WEFCaXNPbmxsc3hUd2U0NwoxaUU9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None

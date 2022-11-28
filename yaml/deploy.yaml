@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-registry
+  labels:
+    app: admission-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admission-registry
+  template:
+    metadata:
+      labels:
+        app: admission-registry
+    spec:
+      containers:
+        - name: validate
+          image: alpine:3.12
+          imagePullPolicy: IfNotPresent
+          command: ["/app/webhookPractice"]
+          env: # 环境变量
+            - name: WHITELIST_REGISTRIES
+              value: "docker.io,gcr.io"
+            - name: BLACKLIST_REGISTRIES
+              value: ""
+            - name: WhITE_OR_BLOCK
+              value: "white"
+            - name: PORT
+              value: "443"
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: app
+              mountPath: /app
+      volumes:
+        - name: webhook-certs
+          secret: # 把secret 映射到volumes。 最终会转为tls.crt tls.key
+            secretName: admission-registry-tls
+        - name: app
+          hostPath:
+            path: /root/k8sWebhookPractice
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admission-registry
+  labels:
+    app: admission-registry
+spec:
+  ports:
+    - port: 443
+      targetPort: 443
+  selector:
+    app: admission-registry
