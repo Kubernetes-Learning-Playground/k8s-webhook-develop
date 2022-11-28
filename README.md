@@ -1,7 +1,7 @@
 ## k8s api server webhook 二次开发实践
 ## k8s-webhook-develop
 
-### 项目丝路
+### 项目功能
 
 使用k8s插件的webhook功能，部署ValidatingWebhookConfiguration资源对象。
 
