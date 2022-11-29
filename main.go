@@ -42,10 +42,12 @@ func main() {
 		WhiteOrBlock: os.Getenv("WhITE_OR_BLOCK"),
 		WhiteListRegistries: strings.Split(os.Getenv("WHITELIST_REGISTRIES"), ","),
 		BlackListRegistries: strings.Split(os.Getenv("BLACKLIST_REGISTRIES"), ","),
+		AnnotationOrImage: os.Getenv("ANNOTATION_OR_IMAGE"),
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate", tlsServer.Serve)
+	mux.HandleFunc("/mutate", tlsServer.Serve)
 
 	tlsServer.Server.Handler = mux
 

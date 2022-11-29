@@ -28,6 +28,8 @@ spec:
               value: "white"
             - name: PORT # 端口
               value: "443"
+            - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
+              value: "annotation"
           ports:
             - containerPort: 443
           volumeMounts:

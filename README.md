@@ -1,17 +1,23 @@
 ## k8s api server webhook 二次开发实践
 ## k8s-webhook-develop
 
-### 项目功能
-
+### 项目思路
+#### 1. Validate
 使用k8s插件的webhook功能，部署ValidatingWebhookConfiguration资源对象。
 
-同时支援白名单与黑名单校验镜像的两种方式。
+同时支持白名单与黑名单校验镜像的两种方式。
 
 (在yaml/deploy.yaml的环境变量WhITE_OR_BLOCK中设置"white" or "black"。)
 
 1. 白名单：只有列表中的镜像前缀同意创建。
 
 2. 黑名单：只有列表中的镜像前缀拒绝创建。
+#### 2. Mutate
+使用k8s插件的webhook功能，部署MutatingWebhookConfiguration资源对象。
+
+支持替换pod image功能与增加annotation功能
+
+(在yaml/deploy.yaml的环境变量ANNOTATION_OR_IMAGE中设置"image" or "annotation"。)
 
 ### 项目部署步骤
 1. 进入目录
@@ -128,13 +134,29 @@ secret/admission-registry-tls created
 ```
 
 
-5. 启动项目
+5. 启动项目(目前支援两个其中一个部署，如果同时部署会报错)
 ```
+# 如果使用validate webhook
 kubectl apply -f deploy.yaml
 kubectl apply -f validatewebhook.yaml
+# 如果使用 mutate webhook
+kubectl apply -f deploy.yaml
+kubectl apply -f mutatewebhook.yaml
 
 [root@vm-0-12-centos yaml]# kubectl apply -f .
 deployment.apps/admission-registry created
 service/admission-registry created
 validatingwebhookconfiguration.admissionregistration.k8s.io/admission-registry created
+```
+
+6. 测试
+test.yaml : 主要测试validate webhook 通过白名单的前缀
+
+test1.yaml：主要测试validate webhook 非白名单的前缀 会报错，也可以测试mutate webhook 更换镜像后不会报错。
+
+test3.yaml：主要测试mutate webhook 新增annotation
+```
+kubectl apply -f test.yaml
+kubectl apply -f test1.yaml
+kubectl apply -f test3.yaml
 ```
