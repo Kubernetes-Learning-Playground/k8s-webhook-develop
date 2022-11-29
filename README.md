@@ -150,6 +150,7 @@ validatingwebhookconfiguration.admissionregistration.k8s.io/admission-registry c
 ```
 
 6. 测试
+
 test.yaml : 主要测试validate webhook 通过白名单的前缀
 
 test1.yaml：主要测试validate webhook 非白名单的前缀 会报错，也可以测试mutate webhook 更换镜像后不会报错。
