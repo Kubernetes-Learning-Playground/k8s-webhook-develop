@@ -1,15 +1,16 @@
 package src
 
 import (
+	"encoding/json"
 	"fmt"
 	admissionv1 "k8s.io/api/admission/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/klog"
 	"log"
 	"net/http"
-	"encoding/json"
+	"os"
 	"strings"
 )
 
@@ -19,15 +20,14 @@ const (
 )
 
 type patchOperation struct {
-	Op 		string 		`json:"op"`
-	Path 	string 		`json:"path"`
-	Value 	interface{} `json:"value,omitempty"`
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
 }
 
 var (
 	objectMeta *metav1.ObjectMeta
 )
-
 
 func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 
@@ -35,8 +35,6 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 
 	klog.Infof("AdmissionReview for Kind=%s, Namespace=%s Name=%v UID=%v Operation=%v UserInfo=%v",
 		req.Kind.Kind, req.Namespace, req.Name, req.UID, req.Operation, req.UserInfo)
-
-
 
 	// 区分传入资源类型
 	switch req.Kind.Kind {
@@ -65,7 +63,6 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 					Message: err.Error(),
 				},
 			}
-
 		}
 
 		objectMeta = &service.ObjectMeta
@@ -79,7 +76,6 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 					Message: err.Error(),
 				},
 			}
-
 		}
 
 		objectMeta = &pod.ObjectMeta
@@ -91,8 +87,9 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 				Message: fmt.Sprintf("Can't handle the kind(%s) object", req.Kind.Kind),
 			},
 		}
-
 	}
+
+	// 判断mutate功能
 
 	if s.AnnotationOrImage == "annotation" {
 		need := mutationRequired(objectMeta)
@@ -115,8 +112,6 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 			}(),
 		}
 
-
-
 	} else if s.AnnotationOrImage == "image" && req.Kind.Kind != "Pod" {
 		return &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
@@ -126,7 +121,6 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 		}
 	}
 
-
 	return &admissionv1.AdmissionResponse{
 		Allowed: allowed,
 		Result: &metav1.Status{
@@ -135,7 +129,6 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 		},
 	}
 }
-
 
 func mutationRequired(metadata *metav1.ObjectMeta) bool {
 
@@ -162,7 +155,6 @@ func mutationRequired(metadata *metav1.ObjectMeta) bool {
 	klog.Infof("Mutation policy for %s/%s: required: %v", metadata.Name, metadata.Namespace, need)
 
 	return need
-
 
 }
 
@@ -216,63 +208,66 @@ func mutateAnnotations(target map[string]string, added map[string]string) (patch
 	return
 }
 
-
 type PatchOperate struct {
-	Op string `json:"op"`
-	Path string `json:"path"`
+	Op    string `json:"op"`
+	Path  string `json:"path"`
 	Value string `json:"value"`
 }
 
 type InjectionOperate struct {
-	Op string `json:"op"`
-	Path string `json:"path"`
+	Op    string   `json:"op"`
+	Path  string   `json:"path"`
 	Value []*Value `json:"value"`
 }
 
 type Value struct {
-	Name string `json:"name"`
-	Image string `json:"image"`
+	Name    string   `json:"name"`
+	Image   string   `json:"image"`
 	Command []string `json:"command"`
 }
 
 func patchContainerImage() []byte {
 	patch := &PatchOperate{
-		Op: "replace",
-		Path: "/spec/containers/0/image",
-		Value: "nginx:1.19-alpine",
+		Op:    "replace",
+		Path:  "/spec/containers/0/image",
+		Value: os.Getenv("MUTATE_PATCH_IMAGE"), // 从环境变量取image
 	}
 	b1, err := json.Marshal(patch)
 	if err != nil {
 		log.Println(err)
 		return []byte{}
 	}
+	var res []byte
+	// FIXME 试验用的 init容器
+	if os.Getenv("IS_INIT_IMAGE") == "true" {
+		valueList := make([]*Value, 0)
+		value := &Value{
+			Name:    "myinit",
+			Image:   "busybox:1.28",
+			Command: []string{"sh", "-c", "echo The app is running!"},
+		}
+		valueList = append(valueList, value)
 
-	valueList := make([]*Value, 0)
-	value := &Value{
-		Name: "myinit",
-		Image: "busybox:1.28",
-		Command: []string{"sh", "-c", "echo The app is running!"},
+		injection := &InjectionOperate{
+			Op:    "add",
+			Path:  "/spec/initContainers",
+			Value: valueList,
+		}
+		b2, err := json.Marshal(injection)
+		if err != nil {
+			log.Println(err)
+			return []byte{}
+		}
+
+		resString := "[" + string(b1) + "," + string(b2) + "]"
+		res = []byte(resString)
+		fmt.Println("init container + container", resString)
+	} else {
+		res = b1
+		fmt.Println("container", string(res))
 	}
-	valueList = append(valueList, value)
 
-	injection := &InjectionOperate{
-		Op: "add",
-		Path: "/spec/initContainers",
-		Value: valueList,
-	}
-	b2, err := json.Marshal(injection)
-	if err != nil {
-		log.Println(err)
-		return []byte{}
-	}
 
-	resString := "[" + string(b1) + "," + string(b2) + "]"
-
-	fmt.Println(resString)
-	res := []byte(resString)
 
 	return res
-
-
-
 }

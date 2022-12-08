@@ -20,11 +20,11 @@ type TLSServerParameters struct {
 }
 
 type TLSServer struct {
-	Server *http.Server
-	WhiteOrBlock string
+	Server              *http.Server
+	WhiteOrBlock        string
 	WhiteListRegistries []string
 	BlackListRegistries []string
-	AnnotationOrImage string
+	AnnotationOrImage   string
 }
 
 var (
@@ -89,7 +89,6 @@ func (s *TLSServer) Serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	klog.Info(fmt.Sprintf("sending response: %v", responseAdmissionReview.Response))
 
 	respBytes, err := json.Marshal(responseAdmissionReview)
@@ -103,4 +102,3 @@ func (s *TLSServer) Serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }
-
