@@ -30,6 +30,10 @@ spec:
               value: "443"
             - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
               value: "annotation"
+            - name: MUTATE_PATCH_IMAGE
+              value: "nginx:1.19-alpine"
+            - name: IS_INIT_IMAGE
+              value: "true"
           ports:
             - containerPort: 443
           volumeMounts:

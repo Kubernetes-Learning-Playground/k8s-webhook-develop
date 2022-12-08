@@ -15,10 +15,11 @@
 #### 2. Mutate
 使用k8s插件的webhook功能，部署MutatingWebhookConfiguration资源对象。
 
-支持替换pod image功能与增加annotation功能
+支持替换pod image功能或增加annotation功能
 
 (在yaml/deploy.yaml的环境变量ANNOTATION_OR_IMAGE中设置"image" or "annotation"。)
 
+// **TODO**: 目前仅支持替换镜像patch功能，未来预计新增类似**istio**的注入特定容器功能。
 ### 项目部署步骤
 1. 进入目录
 
@@ -160,4 +161,66 @@ test3.yaml：主要测试mutate webhook 新增annotation
 kubectl apply -f test.yaml
 kubectl apply -f test1.yaml
 kubectl apply -f test3.yaml
+```
+
+7. deployment配置
+
+**重点**
+
+目录：yaml/deploy.yaml，主要说明配置文件的环境变量
+   
+```bigquery
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-registry
+  labels:
+    app: admission-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admission-registry
+  template:
+    metadata:
+      labels:
+        app: admission-registry
+    spec:
+      containers:
+        - name: validate
+          image: alpine:3.12
+          imagePullPolicy: IfNotPresent
+          command: ["/app/webhookPractice"]
+          env: # 环境变量
+            # 前三个是validate webhook使用
+            - name: WHITELIST_REGISTRIES # 白名单列表
+              value: "docker.io,gcr.io"
+            - name: BLACKLIST_REGISTRIES # 黑名单列表
+              value: ""
+            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
+              value: "white"
+            - name: PORT # 端口
+              value: "443"
+            # 后三个是mutate webhook使用
+            - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
+              value: "annotation"
+            - name: MUTATE_PATCH_IMAGE # 替换的容器镜像
+              value: "nginx:1.19-alpine"
+            - name: IS_INIT_IMAGE # 是否使用initContainer容器 (测试阶段)
+              value: "true"
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs # 需要注意上面步骤的密钥文件是否成功创建并在主机中此目录
+              readOnly: true
+            - name: app
+              mountPath: /app
+      volumes:
+        - name: webhook-certs
+          secret: # 把secret 映射到volumes。 最终会转为tls.crt tls.key
+            secretName: admission-registry-tls # 可以先使用此检查看看 kubectl get secret | grep admission-registry-tls
+        - name: app
+          hostPath:
+            path: /root/k8sWebhookPractice # 可执行文件的挂载目录
 ```
