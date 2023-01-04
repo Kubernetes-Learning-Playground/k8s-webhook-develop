@@ -91,6 +91,7 @@ func (s *TLSServer) Serve(w http.ResponseWriter, r *http.Request) {
 
 	klog.Info(fmt.Sprintf("sending response: %v", responseAdmissionReview.Response))
 
+
 	respBytes, err := json.Marshal(responseAdmissionReview)
 	if err != nil {
 		klog.Errorf("Can't encode response: %v", err)

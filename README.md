@@ -15,7 +15,9 @@
 #### 2. Mutate
 使用k8s插件的webhook功能，部署MutatingWebhookConfiguration资源对象。
 
-支持替换pod image功能或增加annotation功能
+1.支持替换(replace)pod image功能
+2.预计支持sidecar模式的Pod image功能
+3.增加自定义annotation功能
 
 (在yaml/deploy.yaml的环境变量ANNOTATION_OR_IMAGE中设置"image" or "annotation"。)
 
@@ -186,41 +188,59 @@ spec:
       labels:
         app: admission-registry
     spec:
+      serviceAccountName: admission-registry-serviceaccount
       containers:
         - name: validate
           image: alpine:3.12
           imagePullPolicy: IfNotPresent
           command: ["/app/webhookPractice"]
           env: # 环境变量
-            # 前三个是validate webhook使用
+            # validate 相关
+            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
+              value: "white"
             - name: WHITELIST_REGISTRIES # 白名单列表
               value: "docker.io,gcr.io"
             - name: BLACKLIST_REGISTRIES # 黑名单列表
               value: ""
-            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
-              value: "white"
             - name: PORT # 端口
               value: "443"
-            # 后三个是mutate webhook使用
+            # mutate 相关
             - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
-              value: "annotation"
-            - name: MUTATE_PATCH_IMAGE # 替换的容器镜像
+              value: "image" # "image" 或 "annotation"
+            - name: ANNOTATION_KEY_VALUE # 可添加自定义annotation
+              value: "customizeAnnotation:my.practice.admission"
+            - name: MUTATE_PATCH_IMAGE
               value: "nginx:1.19-alpine"
-            - name: IS_INIT_IMAGE # 是否使用initContainer容器 (测试阶段)
-              value: "true"
+            - name: IS_INIT_IMAGE # 是否启用init容器
+              value: "false"
+            - name: MUTATE_PATCH_IMAGE_REPLACE # 用来区分是replace模式还是sidecar
+              value: "false"
           ports:
             - containerPort: 443
           volumeMounts:
             - name: webhook-certs
-              mountPath: /etc/webhook/certs # 需要注意上面步骤的密钥文件是否成功创建并在主机中此目录
+              mountPath: /etc/webhook/certs
               readOnly: true
             - name: app
               mountPath: /app
       volumes:
         - name: webhook-certs
           secret: # 把secret 映射到volumes。 最终会转为tls.crt tls.key
-            secretName: admission-registry-tls # 可以先使用此检查看看 kubectl get secret | grep admission-registry-tls
+            secretName: admission-registry-tls
         - name: app
           hostPath:
-            path: /root/k8sWebhookPractice # 可执行文件的挂载目录
+            path: /root/k8sWebhookPractice
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admission-registry
+  labels:
+    app: admission-registry
+spec:
+  ports:
+    - port: 443
+      targetPort: 443
+  selector:
+    app: admission-registry
 ```

@@ -14,26 +14,33 @@ spec:
       labels:
         app: admission-registry
     spec:
+      serviceAccountName: admission-registry-serviceaccount
       containers:
         - name: validate
           image: alpine:3.12
           imagePullPolicy: IfNotPresent
           command: ["/app/webhookPractice"]
           env: # 环境变量
+            # validate 相关
+            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
+              value: "white"
             - name: WHITELIST_REGISTRIES # 白名单列表
               value: "docker.io,gcr.io"
             - name: BLACKLIST_REGISTRIES # 黑名单列表
               value: ""
-            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
-              value: "white"
             - name: PORT # 端口
               value: "443"
+            # mutate 相关
             - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
-              value: "annotation"
+              value: "image" # "image" 或 "annotation"
+            - name: ANNOTATION_KEY_VALUE
+              value: "customizeAnnotation:my.practice.admission"
             - name: MUTATE_PATCH_IMAGE
               value: "nginx:1.19-alpine"
             - name: IS_INIT_IMAGE
-              value: "true"
+              value: "false"
+            - name: MUTATE_PATCH_IMAGE_REPLACE
+              value: "false"
           ports:
             - containerPort: 443
           volumeMounts:
