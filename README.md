@@ -2,6 +2,7 @@
 ## k8s-webhook-develop
 
 ### 项目思路
+![](https://github.com/googs1025/k8s-webhook-develop/blob/sidecar_fix/image/%E6%B5%81%E7%A8%8B%E5%9B%BE%20(1).jpg?raw=true)
 #### 1. Validate
 使用k8s插件的webhook功能，部署ValidatingWebhookConfiguration资源对象。
 
