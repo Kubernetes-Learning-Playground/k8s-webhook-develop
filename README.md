@@ -146,6 +146,8 @@ secret/admission-registry-tls created
 kubectl apply -f deploy.yaml
 kubectl apply -f validatewebhook.yaml
 # 如果使用 mutate webhook
+kubectl apply -f configmaps.yaml
+kubectl apply -f nginx-configmap.yaml
 kubectl apply -f deploy.yaml
 kubectl apply -f mutatewebhook.yaml
 
