@@ -5,23 +5,25 @@
 #### 1. Validate
 使用k8s插件的webhook功能，部署ValidatingWebhookConfiguration资源对象。
 
-同时支持白名单与黑名单校验镜像的两种方式。
+支持白名单与黑名单校验镜像的两种方式(选其一)。
 
 (在yaml/deploy.yaml的环境变量WhITE_OR_BLOCK中设置"white" or "black"。)
 
 1. 白名单：只有列表中的镜像前缀同意创建。
 
 2. 黑名单：只有列表中的镜像前缀拒绝创建。
+   
+注：当部署一个deployment时，只能三者选用其一功能。
 #### 2. Mutate
 使用k8s插件的webhook功能，部署MutatingWebhookConfiguration资源对象。
 
-1.支持替换(replace)pod image功能
-2.预计支持sidecar模式的Pod image功能
-3.增加自定义annotation功能
+1.  支持替换(replace)pod image模式 或 边车(sidecar)pod image模式
+2.  预计支持sidecar模式的Pod image功能
+3.  增加自定义annotation功能
 
-(在yaml/deploy.yaml的环境变量ANNOTATION_OR_IMAGE中设置"image" or "annotation"。)
+注：当部署一个deployment时，只能三者选用其一功能。
 
-// **TODO**: 目前仅支持替换镜像patch功能，未来预计新增类似**istio**的注入特定容器功能。
+(在yaml/deploy.yaml的环境变量ANNOTATION_OR_IMAGE中设置"image" or "annotation" or "label"。)
 ### 项目部署步骤
 1. 进入目录
 
@@ -188,7 +190,6 @@ spec:
       labels:
         app: admission-registry
     spec:
-      serviceAccountName: admission-registry-serviceaccount
       containers:
         - name: validate
           image: alpine:3.12
@@ -196,33 +197,35 @@ spec:
           command: ["/app/webhookPractice"]
           env: # 环境变量
             # validate 相关
-            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
+            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单功能
               value: "white"
-            - name: WHITELIST_REGISTRIES # 白名单列表
+            - name: WHITELIST_REGISTRIES # 白名单列表：可自己选填
               value: "docker.io,gcr.io"
-            - name: BLACKLIST_REGISTRIES # 黑名单列表
+            - name: BLACKLIST_REGISTRIES # 黑名单列表：可自己选填
               value: ""
             - name: PORT # 端口
               value: "443"
             # mutate 相关
-            - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
-              value: "image" # "image" 或 "annotation"
-            - name: ANNOTATION_KEY_VALUE # 可添加自定义annotation
+            - name: MUTATE_OBJECT # 判断mutate是patch镜像功能还是补全annotation
+              value: "image" # "image" 或 "annotation" "label"
+            - name: ANNOTATION_KEY_VALUE # 可以自定义annotation
               value: "customizeAnnotation:my.practice.admission"
-            - name: MUTATE_PATCH_IMAGE
+            - name: LABEL_KEY_VALUE # 可以自定义label
+              value: "customizeLabel:my.practice.admission"
+            - name: MUTATE_PATCH_IMAGE # replace模式的image
               value: "nginx:1.19-alpine"
-            - name: IS_INIT_IMAGE # 是否启用init容器
-              value: "false"
-            - name: MUTATE_PATCH_IMAGE_REPLACE # 用来区分是replace模式还是sidecar
+            - name: MUTATE_PATCH_IMAGE_REPLACE # 区分是replace模式还是sidecar模式
               value: "false"
           ports:
             - containerPort: 443
           volumeMounts:
             - name: webhook-certs
-              mountPath: /etc/webhook/certs
+              mountPath: /etc/webhook/certs # 写死的路径
               readOnly: true
             - name: app
               mountPath: /app
+            - name: sidecarfile
+              mountPath: /etc/webhook/config # 写死的路径
       volumes:
         - name: webhook-certs
           secret: # 把secret 映射到volumes。 最终会转为tls.crt tls.key
@@ -230,6 +233,9 @@ spec:
         - name: app
           hostPath:
             path: /root/k8sWebhookPractice
+        - name: sidecarfile # 如果使用sidecar模式，一定要配置此文件
+          configMap:
+            name: sidecar-injector
 ---
 apiVersion: v1
 kind: Service

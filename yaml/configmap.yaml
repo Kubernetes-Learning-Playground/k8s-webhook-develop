@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: sidecar-injector
 data:
-  sidecarconfig.yaml: |
+  sidecarconfig.yaml: | # sidecar模式的配置文件
     containers:
     - name: sidecar-nginx
       image: nginx:1.12.2
