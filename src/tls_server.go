@@ -24,7 +24,7 @@ type TLSServer struct {
 	WhiteOrBlock        string
 	WhiteListRegistries []string
 	BlackListRegistries []string
-	AnnotationOrImage   string
+	MutateObject   string
 }
 
 var (
@@ -90,6 +90,7 @@ func (s *TLSServer) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	klog.Info(fmt.Sprintf("sending response: %v", responseAdmissionReview.Response))
+
 
 	respBytes, err := json.Marshal(responseAdmissionReview)
 	if err != nil {

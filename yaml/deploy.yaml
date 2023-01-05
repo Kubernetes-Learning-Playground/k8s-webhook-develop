@@ -20,28 +20,36 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/app/webhookPractice"]
           env: # 环境变量
-            - name: WHITELIST_REGISTRIES # 白名单列表
-              value: "docker.io,gcr.io"
-            - name: BLACKLIST_REGISTRIES # 黑名单列表
-              value: ""
-            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单
+            # validate 相关
+            - name: WhITE_OR_BLOCK # 使用白名单还是黑名单功能
               value: "white"
+            - name: WHITELIST_REGISTRIES # 白名单列表：可自己选填
+              value: "docker.io,gcr.io"
+            - name: BLACKLIST_REGISTRIES # 黑名单列表：可自己选填
+              value: ""
             - name: PORT # 端口
               value: "443"
-            - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
-              value: "annotation"
-            - name: MUTATE_PATCH_IMAGE
+            # mutate 相关
+            - name: MUTATE_OBJECT # 判断mutate是patch镜像功能还是补全annotation
+              value: "image" # "image" 或 "annotation" "label"
+            - name: ANNOTATION_KEY_VALUE # 可以自定义annotation
+              value: "customizeAnnotation:my.practice.admission"
+            - name: LABEL_KEY_VALUE # 可以自定义label
+              value: "customizeLabel:my.practice.admission"
+            - name: MUTATE_PATCH_IMAGE # replace模式的image
               value: "nginx:1.19-alpine"
-            - name: IS_INIT_IMAGE
-              value: "true"
+            - name: MUTATE_PATCH_IMAGE_REPLACE # 区分是replace模式还是sidecar模式
+              value: "false"
           ports:
             - containerPort: 443
           volumeMounts:
             - name: webhook-certs
-              mountPath: /etc/webhook/certs
+              mountPath: /etc/webhook/certs # 写死的路径
               readOnly: true
             - name: app
               mountPath: /app
+            - name: sidecarfile
+              mountPath: /etc/webhook/config # 写死的路径
       volumes:
         - name: webhook-certs
           secret: # 把secret 映射到volumes。 最终会转为tls.crt tls.key
@@ -49,6 +57,9 @@ spec:
         - name: app
           hostPath:
             path: /root/k8sWebhookPractice
+        - name: sidecarfile # 如果使用sidecar模式，一定要配置此文件
+          configMap:
+            name: sidecar-injector
 ---
 apiVersion: v1
 kind: Service
