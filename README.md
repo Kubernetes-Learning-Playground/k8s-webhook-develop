@@ -14,7 +14,7 @@
 
 2. 黑名单：只有列表中的镜像前缀拒绝创建。
    
-注：当部署一个deployment时，只能三者选用其一功能。
+注：当部署一个deployment时，只能两者选用其一功能。
 #### 2. Mutate
 使用k8s插件的webhook功能，部署MutatingWebhookConfiguration资源对象。
 
