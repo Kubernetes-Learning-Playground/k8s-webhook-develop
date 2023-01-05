@@ -14,7 +14,6 @@ spec:
       labels:
         app: admission-registry
     spec:
-      serviceAccountName: admission-registry-serviceaccount
       containers:
         - name: validate
           image: alpine:3.12
@@ -31,14 +30,14 @@ spec:
             - name: PORT # 端口
               value: "443"
             # mutate 相关
-            - name: ANNOTATION_OR_IMAGE # 判断mutate是patch镜像功能还是补全annotation
-              value: "image" # "image" 或 "annotation"
+            - name: MUTATE_OBJECT # 判断mutate是patch镜像功能还是补全annotation
+              value: "image" # "image" 或 "annotation" "label"
             - name: ANNOTATION_KEY_VALUE
               value: "customizeAnnotation:my.practice.admission"
+            - name: LABEL_KEY_VALUE
+              value: "customizeLabel:my.practice.admission"
             - name: MUTATE_PATCH_IMAGE
               value: "nginx:1.19-alpine"
-            - name: IS_INIT_IMAGE
-              value: "false"
             - name: MUTATE_PATCH_IMAGE_REPLACE
               value: "false"
           ports:
@@ -49,6 +48,8 @@ spec:
               readOnly: true
             - name: app
               mountPath: /app
+            - name: sidecarfile
+              mountPath: /etc/webhook/config
       volumes:
         - name: webhook-certs
           secret: # 把secret 映射到volumes。 最终会转为tls.crt tls.key
@@ -56,6 +57,9 @@ spec:
         - name: app
           hostPath:
             path: /root/k8sWebhookPractice
+        - name: sidecarfile
+          configMap:
+            name: sidecar-injector
 ---
 apiVersion: v1
 kind: Service

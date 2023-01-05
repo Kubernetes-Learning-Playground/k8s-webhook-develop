@@ -1,26 +1,23 @@
 package src
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	admissionv1 "k8s.io/api/admission/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-	"k8sWebhookPractice/client"
-	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
 const (
 	AnnotationMutateKey = "my.webhook.practice.admission-registry/mutate" // my.webhook.admission-registry/mutate = no/off/false/n
 	AnnotationStatusKey = "my.webhook.practice.admission-registry/status" // my.webhook.practice.admission-registry/status = mutated
+	LabelMutateKey      = "my.webhook.practice.admission-registry/mutate" // my.webhook.admission-registry/mutate = no/off/false/n
+	LabelStatusKey      = "my.webhook.practice.admission-registry/status" // my.webhook.practice.admission-registry/status = mutated
 )
 
 type patchOperation struct {
@@ -30,7 +27,8 @@ type patchOperation struct {
 }
 
 var (
-	objectMeta *metav1.ObjectMeta
+	objectMeta     *metav1.ObjectMeta
+	needSidecarPod *corev1.Pod
 )
 
 func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
@@ -83,6 +81,7 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 		}
 
 		objectMeta = &pod.ObjectMeta
+		needSidecarPod = &pod
 
 	default:
 		return &admissionv1.AdmissionResponse{
@@ -95,8 +94,8 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 
 	// 判断mutate功能
 
-	if s.AnnotationOrImage == "annotation" {
-		need := mutationRequired(objectMeta)
+	if s.MutateObject == "annotation" {
+		need := mutationAnnotationRequired(objectMeta)
 		if !need {
 			return &admissionv1.AdmissionResponse{
 				Allowed: true,
@@ -106,53 +105,38 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 
 		return res
 
-	} else if s.AnnotationOrImage == "image" && req.Kind.Kind == "Pod" {
-
-		podName := req.Name
-		podNamespace := req.Namespace
-
-		// 取pod
-
-		pod, err := client.ClientSet.CoreV1().Pods(podNamespace).Get(context.Background(), podName, metav1.GetOptions{})
-
-		var containerLen int
-
-		// 如果错误是没找到
-		if err != nil && errors.IsNotFound(err) {
-			//return &admissionv1.AdmissionResponse{
-			//	Allowed: allowed,
-			//	Result: &metav1.Status{
-			//		Code:    int32(code),
-			//		Message: message,
-			//	},
-			//}
-		} else if err!= nil && !errors.IsNotFound(err) {
-			// 别的错误直接返回
+	} else if s.MutateObject == "label" {
+		need := mutationLabelRequired(objectMeta)
+		if !need {
 			return &admissionv1.AdmissionResponse{
-				Result: &metav1.Status{
-					Code: http.StatusBadRequest,
-					Message: err.Error(),
-				},
+				Allowed: true,
 			}
-		} else {
-			// 如果有找到，取容器数量
-			containerLen = len(pod.Spec.Containers)
+		}
+		res := useMutateLabel(objectMeta)
+
+		return res
+	} else if s.MutateObject == "image" && req.Kind.Kind == "Pod" {
+
+		if os.Getenv("MUTATE_PATCH_IMAGE_REPLACE") == "false" {
+			// 如果是sidecar模式 直接用这个
+			return Sidecar(needSidecarPod)
+
 		}
 
-		res := patchContainerImage(containerLen)
+		res := patchContainerImage()
 
 		klog.Infof("patch res", string(res))
 
 		return &admissionv1.AdmissionResponse{
 			Allowed: true,
-			Patch: res,
+			Patch:   res,
 			PatchType: func() *admissionv1.PatchType {
 				pt := admissionv1.PatchTypeJSONPatch
 				return &pt
 			}(),
 		}
 
-	} else if s.AnnotationOrImage == "image" && req.Kind.Kind != "Pod" {
+	} else if s.MutateObject == "image" && req.Kind.Kind != "Pod" {
 		return &admissionv1.AdmissionResponse{
 			Allowed: allowed,
 			Result: &metav1.Status{
@@ -171,7 +155,7 @@ func (s *TLSServer) Mutate(ar *admissionv1.AdmissionReview) *admissionv1.Admissi
 	}
 }
 
-func mutationRequired(metadata *metav1.ObjectMeta) bool {
+func mutationAnnotationRequired(metadata *metav1.ObjectMeta) bool {
 
 	annotations := metadata.GetAnnotations()
 	if annotations == nil {
@@ -199,7 +183,35 @@ func mutationRequired(metadata *metav1.ObjectMeta) bool {
 
 }
 
-func parseCustomizeAnnotation(customizeAnnotation string) (string, string) {
+func mutationLabelRequired(metadata *metav1.ObjectMeta) bool {
+
+	labels := metadata.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+
+	var need bool
+
+	switch strings.ToLower(labels[LabelMutateKey]) {
+	case "n", "no", "false", "off":
+		need = false
+	default:
+		need = true
+
+	}
+
+	status := labels[LabelStatusKey]
+	if strings.ToLower(status) == "mutated" {
+		need = false
+	}
+
+	klog.Infof("Mutation policy for %s/%s: required: %v", metadata.Name, metadata.Namespace, need)
+
+	return need
+
+}
+
+func parseCustomize(customizeAnnotation string) (string, string) {
 	res := strings.Split(customizeAnnotation, ":")
 	if len(res) < 2 {
 		return "", ""
@@ -212,15 +224,49 @@ func useMutateAnnotation(objectMeta *metav1.ObjectMeta) *admissionv1.AdmissionRe
 
 	customizeAnnotation := os.Getenv("ANNOTATION_KEY_VALUE")
 
-	annotationKey, annotationValue := parseCustomizeAnnotation(customizeAnnotation)
+	annotationKey, annotationValue := parseCustomize(customizeAnnotation)
 
 	newAnnotations := map[string]string{
 		AnnotationStatusKey: "mutated",
-		annotationKey: annotationValue,
+		annotationKey:       annotationValue,
 	}
 
 	var patch []patchOperation
 	patch = append(patch, mutateAnnotations(objectMeta.GetAnnotations(), newAnnotations)...)
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		klog.Errorf("patch marshal error: %v", err)
+		return &admissionv1.AdmissionResponse{
+			Result: &metav1.Status{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			},
+		}
+	}
+	return &admissionv1.AdmissionResponse{
+		Allowed: true,
+		Patch:   patchBytes,
+		PatchType: func() *admissionv1.PatchType {
+			pt := admissionv1.PatchTypeJSONPatch
+			return &pt
+		}(),
+	}
+
+}
+
+func useMutateLabel(objectMeta *metav1.ObjectMeta) *admissionv1.AdmissionResponse {
+
+	customizeLabel := os.Getenv("LABEL_KEY_VALUE")
+
+	labelKey, labelValue := parseCustomize(customizeLabel)
+
+	newLabels := map[string]string{
+		LabelStatusKey: "mutated",
+		labelKey:       labelValue,
+	}
+
+	var patch []patchOperation
+	patch = append(patch, mutateLabels(objectMeta.GetLabels(), newLabels)...)
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
 		klog.Errorf("patch marshal error: %v", err)
@@ -265,6 +311,29 @@ func mutateAnnotations(target map[string]string, added map[string]string) (patch
 	return
 }
 
+func mutateLabels(target map[string]string, added map[string]string) (patch []patchOperation) {
+
+	for key, value := range added {
+		if target == nil || target[key] == "" {
+			target = map[string]string{}
+			patch = append(patch, patchOperation{
+				Op:   "add",
+				Path: "/metadata/labels",
+				Value: map[string]string{
+					key: value,
+				},
+			})
+		} else {
+			patch = append(patch, patchOperation{
+				Op:    "replace",
+				Path:  "/metadata/labels/" + key,
+				Value: value,
+			})
+		}
+	}
+	return
+}
+
 type PatchOperate struct {
 	Op    string `json:"op"`
 	Path  string `json:"path"`
@@ -283,12 +352,13 @@ type Value struct {
 	Command []string `json:"command"`
 }
 
-func patchContainerImage(containerLen int) []byte {
+func patchContainerImage() []byte {
 
 	klog.Info("patch the container image.....")
 
 	patch := &PatchOperate{}
-
+	//sidecarPatch := &InjectionOperate{}
+	var b1 []byte
 	// 区分是替换image模式还是sidecar模式
 	if os.Getenv("MUTATE_PATCH_IMAGE_REPLACE") == "true" {
 		klog.Info("use replace container image.....")
@@ -297,54 +367,20 @@ func patchContainerImage(containerLen int) []byte {
 			Path:  "/spec/containers/0/image",
 			Value: os.Getenv("MUTATE_PATCH_IMAGE"), // 从环境变量取image
 		}
-	} else {
-		klog.Info("use sidecar container image.....")
-		// FIXME： sidecar模式还会报错
-		num := containerLen + 1
-		patch = &PatchOperate{
-			Op:    "add",
-			Path:  "/spec/containers" + "/" + strconv.Itoa(num) + "/image",
-			Value: os.Getenv("MUTATE_PATCH_IMAGE"), // 从环境变量取image
-		}
+
+		b1, _ = json.Marshal(patch)
+		klog.Info("patch marshal: ", string(b1))
+
 	}
 
-	b1, err := json.Marshal(patch)
-	if err != nil {
-		log.Println(err)
-		return []byte{}
+	return b1
+}
+
+func parseInitContainerCommand(commandString string) []string {
+	res := make([]string, 0)
+	splitString := strings.Split(commandString, ",")
+	for _, v := range splitString {
+		res = append(res, v)
 	}
-	var res []byte
-	// FIXME 试验用的 init容器
-	if os.Getenv("IS_INIT_IMAGE") == "true" {
-		klog.Info("use init container image.....")
-		valueList := make([]*Value, 0)
-		value := &Value{
-			Name:    "myinit",
-			Image:   "busybox:1.28",
-			Command: []string{"sh", "-c", "echo The app is running!"},
-		}
-		valueList = append(valueList, value)
-
-		injection := &InjectionOperate{
-			Op:    "add",
-			Path:  "/spec/initContainers",
-			Value: valueList,
-		}
-		b2, err := json.Marshal(injection)
-		if err != nil {
-			log.Println(err)
-			return []byte{}
-		}
-
-		resString := "[" + string(b1) + "," + string(b2) + "]"
-		res = []byte(resString)
-		fmt.Println("init container + container", resString)
-	} else {
-		res = b1
-		fmt.Println("container", string(res))
-	}
-
-
-
 	return res
 }

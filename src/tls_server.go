@@ -24,7 +24,7 @@ type TLSServer struct {
 	WhiteOrBlock        string
 	WhiteListRegistries []string
 	BlackListRegistries []string
-	AnnotationOrImage   string
+	MutateObject   string
 }
 
 var (

@@ -42,7 +42,7 @@ func main() {
 		WhiteOrBlock:        os.Getenv("WhITE_OR_BLOCK"),
 		WhiteListRegistries: strings.Split(os.Getenv("WHITELIST_REGISTRIES"), ","),
 		BlackListRegistries: strings.Split(os.Getenv("BLACKLIST_REGISTRIES"), ","),
-		AnnotationOrImage:   os.Getenv("ANNOTATION_OR_IMAGE"),
+		MutateObject:   os.Getenv("MUTATE_OBJECT"),
 	}
 
 	mux := http.NewServeMux()
