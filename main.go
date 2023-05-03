@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"k8s.io/klog"
-	"k8sWebhookPractice/src"
+	"k8sWebhookPractice/pkg"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,7 +16,7 @@ import (
 
 func main() {
 
-	var parameters src.TLSServerParameters
+	var parameters pkg.TLSServerParameters
 
 	// get command line parameters
 	// 都会使用默认值
@@ -31,9 +31,8 @@ func main() {
 		klog.Errorf("Fail to load tls file %s", err)
 	}
 
-	tlsServer := &src.TLSServer{
+	tlsServer := &pkg.TLSServer{
 		Server: &http.Server{
-			//Addr: fmt.Sprintf("%v", os.Getenv("PORT")),
 			Addr: fmt.Sprintf(":%v", os.Getenv("PORT")),
 			TLSConfig: &tls.Config{
 				Certificates: []tls.Certificate{file},
@@ -42,7 +41,7 @@ func main() {
 		WhiteOrBlock:        os.Getenv("WhITE_OR_BLOCK"),
 		WhiteListRegistries: strings.Split(os.Getenv("WHITELIST_REGISTRIES"), ","),
 		BlackListRegistries: strings.Split(os.Getenv("BLACKLIST_REGISTRIES"), ","),
-		MutateObject:   os.Getenv("MUTATE_OBJECT"),
+		MutateObject:        os.Getenv("MUTATE_OBJECT"),
 	}
 
 	mux := http.NewServeMux()
@@ -51,6 +50,7 @@ func main() {
 
 	tlsServer.Server.Handler = mux
 
+	// 启动https server
 	go func() {
 		if err := tlsServer.Server.ListenAndServeTLS("", ""); err != nil {
 			klog.Errorf("Fail to listen and serve webhook server: %v", err)
@@ -59,6 +59,7 @@ func main() {
 
 	klog.Info("Server start!!")
 
+	// 优雅关闭
 	stopC := make(chan os.Signal, 1)
 	signal.Notify(stopC, syscall.SIGINT, syscall.SIGTERM)
 	<-stopC

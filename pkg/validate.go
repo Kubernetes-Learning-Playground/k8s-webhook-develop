@@ -1,4 +1,4 @@
-package src
+package pkg
 
 import (
 	"encoding/json"
@@ -76,6 +76,7 @@ func (s *TLSServer) useWhiteList(pod *corev1.Pod) *admissionv1.AdmissionResponse
 		},
 	}
 }
+
 // 遍例容器镜像列表，当镜像地址匹配到前缀，代表都是符合黑名单的镜像列表
 
 func (s *TLSServer) useBlockList(pod *corev1.Pod) *admissionv1.AdmissionResponse {
